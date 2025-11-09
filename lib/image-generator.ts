@@ -21,48 +21,59 @@ export async function generateImage(
   const apiKey = process.env.IDEOGRAM_API_KEY;
 
   if (!apiKey) {
-    console.warn('IDEOGRAM_API_KEY not found. Skipping image generation.');
+    console.error('[IMAGE GEN] IDEOGRAM_API_KEY not found. Skipping image generation.');
     return null;
   }
 
+  console.log('[IMAGE GEN] Starting image generation with prompt:', options.prompt.substring(0, 100));
+
   try {
+    const requestBody = {
+      image_request: {
+        prompt: options.prompt,
+        aspect_ratio: options.aspectRatio || '1:1',
+        model: options.model || 'V_2',
+        magic_prompt_option: 'AUTO',
+        style_type: options.styleType || 'AUTO',
+      },
+    };
+
+    console.log('[IMAGE GEN] Request body:', JSON.stringify(requestBody, null, 2));
+
     const response = await fetch(IDEOGRAM_API_URL, {
       method: 'POST',
       headers: {
         'Api-Key': apiKey,
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify({
-        image_request: {
-          prompt: options.prompt,
-          aspect_ratio: options.aspectRatio || '1:1',
-          model: options.model || 'V_2',
-          magic_prompt_option: 'AUTO',
-          style_type: options.styleType || 'AUTO',
-        },
-      }),
+      body: JSON.stringify(requestBody),
     });
+
+    console.log('[IMAGE GEN] Response status:', response.status);
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('Ideogram API error:', response.status, errorText);
+      console.error('[IMAGE GEN] Ideogram API error:', response.status, errorText);
       return null;
     }
 
     const data = await response.json();
+    console.log('[IMAGE GEN] Response data:', JSON.stringify(data, null, 2));
     
     if (data.data && data.data.length > 0) {
       const imageData = data.data[0];
+      console.log('[IMAGE GEN] Successfully generated image:', imageData.url);
       return {
         url: imageData.url,
-        prompt: imageData.prompt,
-        resolution: imageData.resolution,
+        prompt: imageData.prompt || options.prompt,
+        resolution: imageData.resolution || 'unknown',
       };
     }
 
+    console.error('[IMAGE GEN] No image data in response');
     return null;
   } catch (error) {
-    console.error('Image generation failed:', error);
+    console.error('[IMAGE GEN] Image generation failed with error:', error);
     return null;
   }
 }
