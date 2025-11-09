@@ -471,7 +471,7 @@ function generateSchedulerJSON(slug: string, timezone: string): string {
   nextMonday.setDate(now.getDate() + daysUntilMonday);
   nextMonday.setHours(17, 0, 0, 0); // Default 5pm UTC (adjust per platform)
 
-  const items = [];
+  const items: Array<{ day: string; platform: string; time: string; path: string }> = [];
   const platforms = [
     { day: 'Mon', platform: 'blog', time: '17:00', path: `/app/blog/${slug}/page.tsx` },
     { day: 'Tue', platform: 'linkedin', time: '15:30', path: `/social/linkedin/${slug}/day-2.md` },
