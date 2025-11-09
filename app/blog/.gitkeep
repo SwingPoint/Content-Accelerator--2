@@ -1,0 +1,3 @@
+# Blog posts will be generated here
+# Each pack creates a folder: app/blog/[slug]/page.tsx
+
