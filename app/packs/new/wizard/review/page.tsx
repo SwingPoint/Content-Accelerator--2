@@ -7,61 +7,56 @@ import Link from 'next/link';
 function ReviewContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
-  const [saving, setSaving] = useState(false);
   const [result, setResult] = useState<any>(null);
-  const [activeTab, setActiveTab] = useState<'blog' | 'social' | 'youtube' | 'images'>('blog');
-  const [editedContent, setEditedContent] = useState<any>({});
 
   useEffect(() => {
-    // Get result from localStorage (passed from wizard)
     const storedResult = localStorage.getItem('wizardResult');
     if (storedResult) {
       const parsed = JSON.parse(storedResult);
       setResult(parsed);
-      
-      // Initialize editable content
-      if (parsed.files) {
-        const initial: any = {};
-        parsed.files.forEach((file: any) => {
-          initial[file.path] = file.content;
-        });
-        setEditedContent(initial);
-      }
-      
       setLoading(false);
     } else {
       router.push('/packs/new/wizard');
     }
   }, [router]);
 
-  const handleSave = async () => {
-    setSaving(true);
-    // In production, you'd save via API
-    // For now, we'll just trigger download
-    setTimeout(() => {
-      setSaving(false);
-      alert('Content saved! You can now download individual files or commit to your repository.');
-    }, 1000);
-  };
-
-  const handleDownloadFile = (path: string, content: string) => {
-    const blob = new Blob([content], { type: 'text/plain' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = path.split('/').pop() || 'file.txt';
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
+  const handleCopyText = (text: string) => {
+    navigator.clipboard.writeText(text);
+    // Show a brief success message
+    const msg = document.createElement('div');
+    msg.textContent = '✓ Copied to clipboard!';
+    msg.className = 'fixed top-4 right-4 bg-green-600 text-white px-6 py-3 rounded-lg shadow-lg z-50';
+    document.body.appendChild(msg);
+    setTimeout(() => document.body.removeChild(msg), 2000);
   };
 
   const handleDownloadAll = () => {
     if (!result?.files) return;
     
-    result.files.forEach((file: any) => {
-      const content = editedContent[file.path] || file.content;
-      setTimeout(() => handleDownloadFile(file.path, content), 100);
+    result.files.forEach((file: any, idx: number) => {
+      setTimeout(() => {
+        const blob = new Blob([file.content], { type: 'text/plain' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = file.path.split('/').pop() || 'file.txt';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(url);
+      }, idx * 100);
+    });
+
+    result.images?.forEach((img: any, idx: number) => {
+      setTimeout(() => {
+        const a = document.createElement('a');
+        a.href = img.url;
+        a.download = img.path.split('/').pop() || 'image.png';
+        a.target = '_blank';
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+      }, (result.files.length + idx) * 100);
     });
   };
 
@@ -69,7 +64,7 @@ function ReviewContent() {
     return (
       <div className="min-h-screen bg-gray-50 flex items-center justify-center">
         <div className="text-center">
-          <div className="text-6xl mb-4">⏳</div>
+          <div className="text-6xl mb-4 animate-bounce">⏳</div>
           <div className="text-xl text-gray-600">Loading your content...</div>
         </div>
       </div>
@@ -80,293 +75,289 @@ function ReviewContent() {
     return null;
   }
 
-  // Group files by type
-  const blogFiles = result.files?.filter((f: any) => f.path.includes('/blog/')) || [];
-  const socialFiles = result.files?.filter((f: any) => 
-    f.path.includes('/social/') && !f.path.includes('/youtube/')
+  // Get blog file
+  const blogFile = result.files?.find((f: any) => f.path.startsWith('app/blog/'));
+
+  // Get social files organized by platform and day
+  const socialPosts = ['facebook', 'instagram', 'linkedin', 'gbp', 'youtube'].flatMap(platform => {
+    const posts = [];
+    for (let day = 1; day <= 5; day++) {
+      const file = result.files?.find((f: any) => 
+        f.path.startsWith(`social/${platform}/`) && f.path.includes(`day-${day}`)
+      );
+      const image = result.images?.find((img: any) => 
+        img.path.includes(`/${platform}/`) && img.path.includes(`day-${day}`)
+      );
+      if (file) {
+        posts.push({ file, image, day, platform });
+      }
+    }
+    return posts;
+  });
+
+  // Blog hero images
+  const blogHeroImages = result.images?.filter((img: any) => 
+    img.path.includes('/blog-hero/')
   ) || [];
-  const youtubeFiles = result.files?.filter((f: any) => f.path.includes('/youtube/')) || [];
-  const imageFiles = result.images || [];
 
   return (
     <div className="min-h-screen bg-gray-50">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
-        <div className="max-w-7xl mx-auto px-6 py-4">
+      <header className="bg-white border-b sticky top-0 z-10 shadow-sm">
+        <div className="max-w-6xl mx-auto px-6 py-5">
           <div className="flex items-center justify-between">
             <div>
-              <h1 className="text-2xl font-bold text-gray-900">Review & Edit Your Content</h1>
-              <p className="text-sm text-gray-600">
-                Make any changes before saving or downloading
+              <div className="inline-block bg-green-100 text-green-800 text-xs font-semibold px-3 py-1 rounded-full mb-2">
+                ✓ Generation Complete
+              </div>
+              <h1 className="text-3xl font-bold text-gray-900">Your Content is Ready</h1>
+              <p className="text-gray-600 mt-1">
+                {socialPosts.length + (blogFile ? 1 : 0)} pieces of optimized content + {result.images?.length || 0} images generated
               </p>
             </div>
-            <div className="flex gap-3">
-              <button
-                onClick={handleDownloadAll}
-                className="px-6 py-2 border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
-              >
-                ⬇️ Download All
-              </button>
-              <button
-                onClick={handleSave}
-                disabled={saving}
-                className="px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50"
-              >
-                {saving ? 'Saving...' : '✅ Approve & Save'}
-              </button>
-            </div>
+            <Link href="/packs/new/wizard" className="text-blue-600 hover:underline font-medium">
+              ← Back to Home
+            </Link>
           </div>
         </div>
-      </div>
-
-      {/* Tabs */}
-      <div className="bg-white border-b">
-        <div className="max-w-7xl mx-auto px-6">
-          <div className="flex gap-2">
-            <TabButton
-              active={activeTab === 'blog'}
-              onClick={() => setActiveTab('blog')}
-              icon="📝"
-              label="Blog Post"
-              count={blogFiles.length}
-            />
-            <TabButton
-              active={activeTab === 'social'}
-              onClick={() => setActiveTab('social')}
-              icon="📱"
-              label="Social Media"
-              count={socialFiles.length}
-            />
-            <TabButton
-              active={activeTab === 'youtube'}
-              onClick={() => setActiveTab('youtube')}
-              icon="🎥"
-              label="YouTube"
-              count={youtubeFiles.length}
-            />
-            <TabButton
-              active={activeTab === 'images'}
-              onClick={() => setActiveTab('images')}
-              icon="🖼️"
-              label="Images"
-              count={imageFiles.length}
-            />
-          </div>
-        </div>
-      </div>
+      </header>
 
       {/* Content */}
-      <div className="max-w-7xl mx-auto px-6 py-8">
-        {activeTab === 'blog' && (
-          <div className="space-y-6">
-            {blogFiles.map((file: any) => (
-              <EditableFile
-                key={file.path}
-                file={file}
-                content={editedContent[file.path] || file.content}
-                onChange={(newContent) => setEditedContent({
-                  ...editedContent,
-                  [file.path]: newContent
-                })}
-                onDownload={() => handleDownloadFile(file.path, editedContent[file.path] || file.content)}
-              />
-            ))}
-          </div>
-        )}
+      <div className="max-w-6xl mx-auto px-6 py-8 pb-24 space-y-12">
+        
+        {/* Blog Post Section */}
+        {blogFile && (
+          <section>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-blue-100 p-3 rounded-lg">
+                <span className="text-3xl">📝</span>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Blog Post</h2>
+                <p className="text-sm text-gray-600">Ready-to-publish article for your website</p>
+              </div>
+            </div>
 
-        {activeTab === 'social' && (
-          <div className="grid md:grid-cols-2 gap-6">
-            {socialFiles.map((file: any) => (
-              <EditableFile
-                key={file.path}
-                file={file}
-                content={editedContent[file.path] || file.content}
-                onChange={(newContent) => setEditedContent({
-                  ...editedContent,
-                  [file.path]: newContent
-                })}
-                onDownload={() => handleDownloadFile(file.path, editedContent[file.path] || file.content)}
-                compact
-              />
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'youtube' && (
-          <div className="space-y-6">
-            {youtubeFiles.map((file: any) => (
-              <EditableFile
-                key={file.path}
-                file={file}
-                content={editedContent[file.path] || file.content}
-                onChange={(newContent) => setEditedContent({
-                  ...editedContent,
-                  [file.path]: newContent
-                })}
-                onDownload={() => handleDownloadFile(file.path, editedContent[file.path] || file.content)}
-              />
-            ))}
-          </div>
-        )}
-
-        {activeTab === 'images' && (
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {imageFiles.map((img: any, idx: number) => (
-              <div key={idx} className="bg-white rounded-lg border-2 border-gray-200 overflow-hidden group hover:border-blue-400 transition">
-                <a href={img.url} target="_blank" rel="noopener noreferrer">
-                  <img
-                    src={img.url}
-                    alt={`Generated image ${idx + 1}`}
-                    className="w-full h-48 object-cover"
-                  />
-                </a>
-                <div className="p-3">
-                  <p className="text-xs font-mono text-gray-600 truncate mb-2">
-                    {img.path.split('/').pop()}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-6">
+                <h3 className="font-semibold text-gray-900 mb-3">Blog Introduction</h3>
+                <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                  <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
+                    {blogFile.content.substring(0, 400)}...
                   </p>
-                  <a
-                    href={img.url}
-                    download
-                    className="block text-center text-sm bg-blue-600 text-white px-3 py-1 rounded hover:bg-blue-700 transition"
+                </div>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => handleCopyText(blogFile.content)}
+                    className="flex-1 px-6 py-3 border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
                   >
-                    Download
-                  </a>
+                    📋 Copy Text
+                  </button>
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
+          </section>
         )}
+
+        {/* Blog Hero Images */}
+        {blogHeroImages.length > 0 && (
+          <section>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-orange-100 p-3 rounded-lg">
+                <span className="text-3xl">🖼️</span>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Blog Header Image</h2>
+                <p className="text-sm text-gray-600">Hero image for your blog post</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6">
+              {blogHeroImages.map((img: any, idx: number) => (
+                <ImageCard key={idx} image={img} />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Social Media Posts */}
+        {socialPosts.length > 0 && (
+          <section>
+            <div className="flex items-center gap-3 mb-6">
+              <div className="bg-purple-100 p-3 rounded-lg">
+                <span className="text-3xl">📱</span>
+              </div>
+              <div>
+                <h2 className="text-2xl font-bold text-gray-900">Social Media Posts</h2>
+                <p className="text-sm text-gray-600">Platform-optimized posts with images</p>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              {socialPosts.map((post, idx) => (
+                <SocialCard
+                  key={idx}
+                  platform={post.platform}
+                  day={post.day}
+                  content={post.file.content}
+                  image={post.image}
+                  onCopyText={() => handleCopyText(post.file.content)}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {/* Next Steps */}
+        <section className="bg-blue-50 border-2 border-blue-200 rounded-xl p-6">
+          <h3 className="font-bold text-gray-900 mb-3">Next Steps</h3>
+          <ul className="space-y-2 text-sm text-gray-700">
+            <li>• <strong>Download</strong> each image using the big green Download button</li>
+            <li>• <strong>Open in Tab</strong> to view full-size in your browser</li>
+            <li>• <strong>Copy Link</strong> to share direct URLs to images</li>
+            <li>• <strong>Copy Text</strong> for the social media post</li>
+            <li>• <strong>Customize</strong> content before posting to match your brand</li>
+            <li>• <strong>Upload</strong> to Instagram, LinkedIn, or your platform of choice</li>
+          </ul>
+          <p className="mt-4 text-xs text-gray-600 bg-yellow-50 border border-yellow-200 p-3 rounded">
+            <strong>Want automated posting?</strong> Instagram automation requires Meta Business verification and API approval (typically 2-4 weeks). Contact us for custom automation solutions.
+          </p>
+        </section>
       </div>
 
       {/* Bottom Actions */}
-      <div className="bg-white border-t fixed bottom-0 left-0 right-0">
-        <div className="max-w-7xl mx-auto px-6 py-4 flex items-center justify-between">
+      <div className="bg-white border-t fixed bottom-0 left-0 right-0 shadow-lg">
+        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
           <Link
             href="/packs/new/wizard"
-            className="text-gray-600 hover:text-gray-900"
+            className="text-gray-600 hover:text-gray-900 font-medium"
           >
             ← Start Over
           </Link>
-          <div className="flex gap-3">
-            <button
-              onClick={handleDownloadAll}
-              className="px-6 py-2 border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
-            >
-              Download All Files
-            </button>
-            <button
-              onClick={handleSave}
-              disabled={saving}
-              className="px-6 py-2 bg-green-600 text-white rounded-lg font-semibold hover:bg-green-700 transition disabled:opacity-50"
-            >
-              {saving ? 'Saving...' : 'Approve & Save'}
-            </button>
-          </div>
+          <button
+            onClick={handleDownloadAll}
+            className="px-8 py-3 bg-green-600 text-white rounded-lg font-bold text-lg hover:bg-green-700 transition shadow-md"
+          >
+            📥 Download All Content
+          </button>
         </div>
       </div>
     </div>
   );
 }
 
-function TabButton({ active, onClick, icon, label, count }: {
-  active: boolean;
-  onClick: () => void;
-  icon: string;
-  label: string;
-  count: number;
+// Social Card Component (matches Synth style)
+function SocialCard({ platform, day, content, image, onCopyText }: {
+  platform: string;
+  day: number;
+  content: string;
+  image: any;
+  onCopyText: () => void;
 }) {
+  const platformNames: any = {
+    facebook: 'Facebook',
+    instagram: 'Instagram',
+    linkedin: 'LinkedIn',
+    gbp: 'Google Business Profile',
+    youtube: 'YouTube'
+  };
+
+  const platformIcons: any = {
+    facebook: '📘',
+    instagram: '📷',
+    linkedin: '💼',
+    gbp: '🗺️',
+    youtube: '🎥'
+  };
+
   return (
-    <button
-      onClick={onClick}
-      className={`px-6 py-3 font-semibold transition border-b-2 ${
-        active
-          ? 'border-blue-600 text-blue-600'
-          : 'border-transparent text-gray-600 hover:text-gray-900'
-      }`}
-    >
-      <span className="mr-2">{icon}</span>
-      {label}
-      <span className="ml-2 text-sm">({count})</span>
-    </button>
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition">
+      {/* Image */}
+      {image && (
+        <a href={image.url} target="_blank" rel="noopener noreferrer" className="block">
+          <img
+            src={image.url}
+            alt={`${platformNames[platform]} Day ${day}`}
+            className="w-full h-72 object-cover"
+          />
+        </a>
+      )}
+
+      {/* Content */}
+      <div className="p-5">
+        <div className="flex items-center gap-2 mb-3">
+          <span className="text-2xl">{platformIcons[platform]}</span>
+          <div className="flex-1">
+            <h3 className="font-bold text-gray-900">{platformNames[platform]}</h3>
+            <p className="text-xs text-gray-500">Day {day} • Ready to post</p>
+          </div>
+        </div>
+
+        <div className="mb-4">
+          <h4 className="text-xs font-semibold text-gray-700 mb-2 uppercase tracking-wide">Caption</h4>
+          <p className="text-sm text-gray-800 leading-relaxed line-clamp-4">
+            {content.length > 200 ? content.substring(0, 200) + '...' : content}
+          </p>
+        </div>
+
+        {/* View Enhanced Prompt (collapsed by default) */}
+        <details className="mb-4">
+          <summary className="text-xs text-blue-600 cursor-pointer hover:underline">
+            ▶ View Enhanced Prompt
+          </summary>
+          <div className="mt-2 text-xs text-gray-600 bg-gray-50 p-3 rounded">
+            <pre className="whitespace-pre-wrap">{content}</pre>
+          </div>
+        </details>
+
+        <div className="flex gap-2">
+          <button
+            onClick={onCopyText}
+            className="flex-1 px-4 py-2 border-2 border-blue-600 text-blue-600 rounded-lg text-sm font-semibold hover:bg-blue-50 transition"
+          >
+            📋 Copy Caption
+          </button>
+          {image && (
+            <a
+              href={image.url}
+              download
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex-1 px-4 py-2 bg-green-600 text-white rounded-lg text-sm font-semibold hover:bg-green-700 transition text-center"
+            >
+              📥 Download
+            </a>
+          )}
+        </div>
+      </div>
+    </div>
   );
 }
 
-function EditableFile({ file, content, onChange, onDownload, compact }: {
-  file: any;
-  content: string;
-  onChange: (content: string) => void;
-  onDownload: () => void;
-  compact?: boolean;
-}) {
-  const [isEditing, setIsEditing] = useState(false);
-  const fileName = file.path.split('/').pop();
-  const platform = file.path.includes('/facebook/') ? 'Facebook'
-    : file.path.includes('/instagram/') ? 'Instagram'
-    : file.path.includes('/linkedin/') ? 'LinkedIn'
-    : file.path.includes('/gbp/') ? 'Google Business'
-    : file.path.includes('/youtube/') ? 'YouTube'
-    : file.path.includes('/blog/') ? 'Blog Post'
-    : 'File';
-
+// Image Card Component (for blog hero images)
+function ImageCard({ image }: { image: any }) {
   return (
-    <div className="bg-white rounded-lg border-2 border-gray-200 overflow-hidden">
-      {/* Header */}
-      <div className="bg-gray-50 px-4 py-3 border-b flex items-center justify-between">
-        <div>
-          <div className="font-semibold text-gray-900">{platform}</div>
-          <div className="text-xs font-mono text-gray-500">{fileName}</div>
-        </div>
-        <div className="flex gap-2">
-          <button
-            onClick={() => setIsEditing(!isEditing)}
-            className="px-3 py-1 text-sm bg-blue-100 text-blue-700 rounded hover:bg-blue-200 transition"
-          >
-            {isEditing ? '👁️ Preview' : '✏️ Edit'}
-          </button>
-          <button
-            onClick={onDownload}
-            className="px-3 py-1 text-sm bg-gray-100 text-gray-700 rounded hover:bg-gray-200 transition"
-          >
-            ⬇️ Download
-          </button>
-        </div>
-      </div>
-
-      {/* Content */}
+    <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition">
+      <a href={image.url} target="_blank" rel="noopener noreferrer" className="block">
+        <img
+          src={image.url}
+          alt="Blog header image"
+          className="w-full h-56 object-cover"
+        />
+      </a>
       <div className="p-4">
-        {isEditing ? (
-          <textarea
-            value={content}
-            onChange={(e) => onChange(e.target.value)}
-            className="w-full border-2 border-blue-300 rounded p-3 font-mono text-sm focus:outline-none focus:border-blue-500 resize-none"
-            rows={compact ? 8 : 20}
-            style={{ minHeight: compact ? '200px' : '400px' }}
-          />
-        ) : (
-          <div className={`prose max-w-none ${compact ? 'text-sm' : ''}`}>
-            <pre className="whitespace-pre-wrap font-sans text-gray-700 leading-relaxed">
-              {content.substring(0, compact ? 500 : 2000)}
-              {content.length > (compact ? 500 : 2000) && '...'}
-            </pre>
-          </div>
-        )}
-      </div>
-
-      {/* Character count */}
-      <div className="px-4 py-2 bg-gray-50 border-t text-xs text-gray-600">
-        {content.length} characters
-        {platform === 'Instagram' && content.length > 2200 && (
-          <span className="ml-2 text-amber-600">⚠️ Instagram limit is 2,200 characters</span>
-        )}
-        {platform === 'Facebook' && content.length > 63206 && (
-          <span className="ml-2 text-amber-600">⚠️ Facebook limit is 63,206 characters</span>
-        )}
-        {platform === 'LinkedIn' && content.length > 3000 && (
-          <span className="ml-2 text-amber-600">⚠️ LinkedIn limit is 3,000 characters</span>
-        )}
-        {platform === 'Google Business' && content.length > 1500 && (
-          <span className="ml-2 text-amber-600">⚠️ GBP limit is 1,500 characters</span>
-        )}
+        <p className="text-xs text-gray-600 mb-3 truncate font-mono">
+          {image.path.split('/').pop()}
+        </p>
+        <a
+          href={image.url}
+          download
+          target="_blank"
+          rel="noopener noreferrer"
+          className="block text-center text-sm bg-green-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-green-700 transition"
+        >
+          📥 Download
+        </a>
       </div>
     </div>
   );
@@ -386,4 +377,3 @@ export default function ReviewPage() {
     </Suspense>
   );
 }
-
