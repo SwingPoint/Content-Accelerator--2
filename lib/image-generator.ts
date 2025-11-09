@@ -13,7 +13,7 @@ export interface GeneratedImage {
   resolution: string;
 }
 
-const IDEOGRAM_API_URL = 'https://api.ideogram.ai/v2/generate';
+const IDEOGRAM_API_URL = 'https://api.ideogram.ai/generate';
 
 export async function generateImage(
   options: ImageGenerationOptions
