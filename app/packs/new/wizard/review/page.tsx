@@ -1,11 +1,10 @@
 'use client';
 
-import { useState, useEffect } from 'react';
-import { useSearchParams, useRouter } from 'next/navigation';
+import { useState, useEffect, Suspense } from 'react';
+import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 
-export default function ReviewPage() {
-  const searchParams = useSearchParams();
+function ReviewContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -370,6 +369,21 @@ function EditableFile({ file, content, onChange, onDownload, compact }: {
         )}
       </div>
     </div>
+  );
+}
+
+export default function ReviewPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="text-6xl mb-4 animate-bounce">⏳</div>
+          <div className="text-xl text-gray-600">Loading...</div>
+        </div>
+      </div>
+    }>
+      <ReviewContent />
+    </Suspense>
   );
 }
 
