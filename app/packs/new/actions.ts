@@ -22,8 +22,16 @@ export async function createPack(input: PackInput) {
         // Create directory if needed
         await mkdir(dir, { recursive: true });
         
-        // Write file
-        await writeFile(fullPath, file.content, 'utf-8');
+        // Write file (handle images vs text)
+        if (file.type === 'image') {
+          // Decode base64 and write as binary
+          const buffer = Buffer.from(file.content, 'base64');
+          await writeFile(fullPath, buffer);
+        } else {
+          // Write as text
+          await writeFile(fullPath, file.content, 'utf-8');
+        }
+        
         writtenPaths.push(file.path);
       }
     } catch (writeError) {
@@ -41,11 +49,20 @@ export async function createPack(input: PackInput) {
       };
     } else {
       // Return files for manual copy-paste
+      // Separate text files and image URLs
+      const textFiles = files.filter(f => f.type !== 'image');
+      const imageFiles = files.filter(f => f.type === 'image');
+      
       return {
         success: true,
         mode: 'bundle',
         message: 'Files generated. Copy these into your repository:',
-        files: files.map(f => ({ path: f.path, content: f.content }))
+        files: textFiles.map(f => ({ path: f.path, content: f.content })),
+        images: imageFiles.map(f => ({ 
+          path: f.path, 
+          url: f.imageUrl,
+          note: 'Download image from URL and save to path' 
+        }))
       };
     }
   } catch (error) {

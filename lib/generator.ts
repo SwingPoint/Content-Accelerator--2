@@ -1,4 +1,10 @@
-import { PackInput, PackFile } from './types';
+import { PackInput, PackFile, ImageAsset } from './types';
+import { 
+  generateImage, 
+  downloadImage, 
+  generateImagePrompt, 
+  getPlatformAspectRatio 
+} from './image-generator';
 
 export async function generatePack(input: PackInput): Promise<PackFile[]> {
   const files: PackFile[] = [];
@@ -39,34 +45,138 @@ export async function generatePack(input: PackInput): Promise<PackFile[]> {
     content: generateSources(seedUrl, input)
   });
 
-  // 4. Social posts (5 days × 4 platforms)
+  // 4. Social posts (5 days × 4 platforms) + Images
   const platforms = ['facebook', 'instagram', 'linkedin', 'gbp'];
+  const imageAssets: ImageAsset[] = [];
+  
   for (const platform of platforms) {
     for (let day = 1; day <= 5; day++) {
+      const postContent = generateSocialPost(platform, day, input, seedContent);
       files.push({
         path: `social/${platform}/${slug}/day-${day}.md`,
-        content: generateSocialPost(platform, day, input, seedContent)
+        content: postContent
+      });
+      
+      // Generate image for this post
+      const imagePrompt = generateImagePrompt(platform, postContent, {
+        businessName: business.businessName,
+        region: business.region,
+        keywords: keywords
+      });
+      
+      const aspectRatio = getPlatformAspectRatio(platform);
+      const generatedImage = await generateImage({
+        prompt: imagePrompt,
+        aspectRatio,
+        styleType: 'GENERAL'
+      });
+      
+      if (generatedImage) {
+        const imagePath = `public/images/${slug}/${platform}/day-${day}.png`;
+        const imageBuffer = await downloadImage(generatedImage.url);
+        
+        if (imageBuffer) {
+          files.push({
+            path: imagePath,
+            content: imageBuffer.toString('base64'),
+            type: 'image',
+            imageUrl: generatedImage.url
+          });
+          
+          imageAssets.push({
+            platform,
+            day,
+            imageUrl: `/images/${slug}/${platform}/day-${day}.png`,
+            prompt: generatedImage.prompt,
+            path: imagePath
+          });
+        }
+      }
+    }
+  }
+
+  // 5. YouTube title + description + thumbnail
+  const ytTitle = generateYouTubeTitle(input);
+  const ytDescription = generateYouTubeDescription(input, seedUrl);
+  
+  files.push({
+    path: `social/youtube/${slug}/title.txt`,
+    content: ytTitle
+  });
+  files.push({
+    path: `social/youtube/${slug}/description.md`,
+    content: ytDescription
+  });
+  
+  // Generate YouTube thumbnail
+  const ytPrompt = generateImagePrompt('youtube', ytTitle, {
+    businessName: business.businessName,
+    region: business.region,
+    keywords: keywords
+  });
+  
+  const ytImage = await generateImage({
+    prompt: ytPrompt,
+    aspectRatio: '16:9',
+    styleType: 'DESIGN'
+  });
+  
+  if (ytImage) {
+    const ytImageBuffer = await downloadImage(ytImage.url);
+    if (ytImageBuffer) {
+      files.push({
+        path: `public/images/${slug}/youtube/thumbnail.png`,
+        content: ytImageBuffer.toString('base64'),
+        type: 'image',
+        imageUrl: ytImage.url
+      });
+      imageAssets.push({
+        platform: 'youtube',
+        imageUrl: `/images/${slug}/youtube/thumbnail.png`,
+        prompt: ytImage.prompt,
+        path: `public/images/${slug}/youtube/thumbnail.png`
       });
     }
   }
 
-  // 5. YouTube title + description
-  files.push({
-    path: `social/youtube/${slug}/title.txt`,
-    content: generateYouTubeTitle(input)
+  // 6. Blog hero image
+  const blogPrompt = generateImagePrompt('blog', keywords, {
+    businessName: business.businessName,
+    region: business.region,
+    keywords: keywords
   });
-  files.push({
-    path: `social/youtube/${slug}/description.md`,
-    content: generateYouTubeDescription(input, seedUrl)
+  
+  const blogImage = await generateImage({
+    prompt: blogPrompt,
+    aspectRatio: '16:9',
+    styleType: 'GENERAL'
   });
+  
+  if (blogImage) {
+    const blogImageBuffer = await downloadImage(blogImage.url);
+    if (blogImageBuffer) {
+      files.push({
+        path: `public/images/${slug}/blog/hero.png`,
+        content: blogImageBuffer.toString('base64'),
+        type: 'image',
+        imageUrl: blogImage.url
+      });
+      imageAssets.push({
+        platform: 'blog',
+        imageUrl: `/images/${slug}/blog/hero.png`,
+        prompt: blogImage.prompt,
+        path: `public/images/${slug}/blog/hero.png`
+      });
+    }
+  }
 
-  // 6. Review JSON
+  // 7. Review JSON (with image assets)
   files.push({
     path: `review/${slug}.json`,
-    content: generateReviewJSON(slug, seedUrl, input)
+    content: generateReviewJSON(slug, seedUrl, input, imageAssets)
   });
 
-  // 7. Scheduler JSON
+  // 8. Scheduler JSON
   files.push({
     path: `scheduler/${slug}.json`,
     content: generateSchedulerJSON(slug, timezone)
@@ -424,9 +534,9 @@ CONNECT WITH US
 ${hashtags} #LocalBusiness #SmallBusiness #${business.region.replace(/\s+/g, '')}`;
 }
 
-function generateReviewJSON(slug: string, seedUrl: string, input: PackInput): string {
+function generateReviewJSON(slug: string, seedUrl: string, input: PackInput, imageAssets: ImageAsset[]): string {
   const platforms = ['facebook', 'instagram', 'linkedin', 'gbp', 'youtube'];
-  const assets: any = { blog: `/app/blog/${slug}/page.tsx`, platforms: {} };
+  const assets: any = { blog: `/app/blog/${slug}/page.tsx`, platforms: {}, images: {} };
   
   platforms.forEach(p => {
     if (p === 'youtube') {
@@ -439,6 +549,18 @@ function generateReviewJSON(slug: string, seedUrl: string, input: PackInput): st
         `/social/${p}/${slug}/day-${i + 1}.md`
       );
     }
+  });
+
+  // Add image assets
+  imageAssets.forEach(img => {
+    if (!assets.images[img.platform]) {
+      assets.images[img.platform] = [];
+    }
+    assets.images[img.platform].push({
+      url: img.imageUrl,
+      prompt: img.prompt,
+      day: img.day
+    });
   });
 
   return JSON.stringify({
@@ -454,7 +576,9 @@ function generateReviewJSON(slug: string, seedUrl: string, input: PackInput): st
     },
     notes: {
       seedUrl: seedUrl || 'No seed URL provided',
-      originality: '≥80% paraphrased; no >75-char verbatim runs'
+      originality: '≥80% paraphrased; no >75-char verbatim runs',
+      imagesGenerated: imageAssets.length,
+      imageGenerationCost: `~$${(imageAssets.length * 0.08).toFixed(2)} (estimated)`
     },
     assets,
     sources: `/content/${slug}/sources.md`

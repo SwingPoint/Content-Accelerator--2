@@ -294,16 +294,26 @@ export default function NewPackPage() {
                   <div className="bg-green-50 border border-green-200 rounded-lg p-6">
                     <h3 className="text-lg font-semibold text-green-900 mb-2">✅ Success!</h3>
                     <p className="text-green-800 mb-4">{result.message}</p>
-                    <p className="text-sm text-green-700">
+                    <p className="text-sm text-green-700 mb-4">
                       Files written to your local filesystem. Commit and push to deploy.
                     </p>
-                    <div className="mt-4">
+                    <div className="grid gap-2">
                       <Link
                         href={`/blog/${slug}`}
+                        className="text-blue-600 hover:underline font-semibold"
+                      >
+                        → View Blog Post
+                      </Link>
+                      <Link
+                        href={`/images/${slug}/blog/hero.png`}
+                        target="_blank"
                         className="text-blue-600 hover:underline"
                       >
-                        View Blog Post →
+                        → View Blog Hero Image
                       </Link>
+                      <p className="text-sm text-green-700 mt-2">
+                        📸 Images generated and saved to /public/images/{slug}/
+                      </p>
                     </div>
                   </div>
                 ) : (
@@ -313,7 +323,40 @@ export default function NewPackPage() {
                     <p className="text-sm text-amber-700 mb-4">
                       Your environment doesn't support filesystem writes (Vercel). Copy these files manually:
                     </p>
+                    
+                    {/* Generated Images */}
+                    {result.images && result.images.length > 0 && (
+                      <div className="mb-6">
+                        <h4 className="font-semibold text-amber-900 mb-3">🖼️ Generated Images ({result.images.length})</h4>
+                        <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
+                          {result.images.map((img: any, idx: number) => (
+                            <div key={idx} className="bg-white border rounded p-2">
+                              <img 
+                                src={img.url} 
+                                alt={`Generated image ${idx + 1}`}
+                                className="w-full h-32 object-cover rounded mb-2"
+                              />
+                              <p className="text-xs font-mono truncate text-gray-600">{img.path.split('/').pop()}</p>
+                              <a 
+                                href={img.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-xs text-blue-600 hover:underline"
+                              >
+                                Download →
+                              </a>
+                            </div>
+                          ))}
+                        </div>
+                        <p className="text-xs text-amber-600 mt-3">
+                          💡 Download each image and save to the path shown. Right-click → Save As...
+                        </p>
+                      </div>
+                    )}
+                    
+                    {/* Text Files */}
                     <div className="space-y-4 max-h-96 overflow-y-auto">
+                      <h4 className="font-semibold text-amber-900 mb-2">📝 Text Files</h4>
                       {result.files?.map((file: any) => (
                         <details key={file.path} className="bg-white border rounded p-3">
                           <summary className="cursor-pointer font-mono text-sm font-semibold">

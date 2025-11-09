@@ -28,5 +28,15 @@ export interface GeneratedPack {
 export interface PackFile {
   path: string;
   content: string;
+  type?: 'text' | 'image';
+  imageUrl?: string;
+}
+
+export interface ImageAsset {
+  platform: string;
+  day?: number;
+  imageUrl: string;
+  prompt: string;
+  path: string;
 }
 
