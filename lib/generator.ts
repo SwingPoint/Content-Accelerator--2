@@ -5,10 +5,20 @@ import {
   generateImagePrompt, 
   getPlatformAspectRatio 
 } from './image-generator';
+import {
+  generateBlogPostAI,
+  generateSocialPostAI,
+  generateYouTubeTitleAI,
+  generateYouTubeDescriptionAI
+} from './ai-content-generator';
 
 export async function generatePack(input: PackInput): Promise<PackFile[]> {
   const files: PackFile[] = [];
   const { slug, business, offer, keywords, timezone } = input;
+  
+  // Track AI generation costs
+  let totalAICost = 0;
+  let totalTokensUsed = 0;
   
   // Fetch or use seed text
   let seedContent = input.seedText || '';
@@ -27,10 +37,23 @@ export async function generatePack(input: PackInput): Promise<PackFile[]> {
     }
   }
 
-  // 1. Blog page
+  // 1. Blog page (AI-generated)
+  const blogAI = await generateBlogPostAI(input, seedContent);
+  let blogContent = '';
+  
+  if (blogAI) {
+    blogContent = blogAI.content;
+    totalAICost += blogAI.cost;
+    totalTokensUsed += blogAI.tokensUsed;
+  } else {
+    // Fallback to template if AI fails
+    console.warn('AI blog generation failed, using template');
+    blogContent = generateBlogContentTemplate(input, seedContent);
+  }
+  
   files.push({
     path: `app/blog/${slug}/page.tsx`,
-    content: generateBlogPage(input, seedContent, seedUrl)
+    content: generateBlogPage(input, blogContent, seedUrl)
   });
 
   // 2. Seed file
@@ -51,7 +74,19 @@ export async function generatePack(input: PackInput): Promise<PackFile[]> {
   
   for (const platform of platforms) {
     for (let day = 1; day <= 5; day++) {
-      const postContent = generateSocialPost(platform, day, input, seedContent);
+      // Generate social post with AI
+      const postAI = await generateSocialPostAI(platform, day, input, seedContent);
+      let postContent = '';
+      
+      if (postAI) {
+        postContent = postAI.content;
+        totalAICost += postAI.cost;
+        totalTokensUsed += postAI.tokensUsed;
+      } else {
+        // Fallback to template
+        postContent = generateSocialPost(platform, day, input, seedContent);
+      }
+      
       files.push({
         path: `social/${platform}/${slug}/day-${day}.md`,
         content: postContent
@@ -95,9 +130,26 @@ export async function generatePack(input: PackInput): Promise<PackFile[]> {
     }
   }
 
-  // 5. YouTube title + description + thumbnail
-  const ytTitle = generateYouTubeTitle(input);
-  const ytDescription = generateYouTubeDescription(input, seedUrl);
+  // 5. YouTube title + description + thumbnail (AI-generated)
+  const ytTitleAI = await generateYouTubeTitleAI(input);
+  let ytTitle = '';
+  if (ytTitleAI) {
+    ytTitle = ytTitleAI.content;
+    totalAICost += ytTitleAI.cost;
+    totalTokensUsed += ytTitleAI.tokensUsed;
+  } else {
+    ytTitle = generateYouTubeTitle(input);
+  }
+  
+  const ytDescAI = await generateYouTubeDescriptionAI(input, seedContent);
+  let ytDescription = '';
+  if (ytDescAI) {
+    ytDescription = ytDescAI.content;
+    totalAICost += ytDescAI.cost;
+    totalTokensUsed += ytDescAI.tokensUsed;
+  } else {
+    ytDescription = generateYouTubeDescription(input, seedUrl);
+  }
   
   files.push({
     path: `social/youtube/${slug}/title.txt`,
@@ -170,10 +222,10 @@ export async function generatePack(input: PackInput): Promise<PackFile[]> {
     }
   }
 
-  // 7. Review JSON (with image assets)
+  // 7. Review JSON (with image assets and AI costs)
   files.push({
     path: `review/${slug}.json`,
-    content: generateReviewJSON(slug, seedUrl, input, imageAssets)
+    content: generateReviewJSON(slug, seedUrl, input, imageAssets, totalAICost, totalTokensUsed)
   });
 
   // 8. Scheduler JSON
@@ -185,7 +237,7 @@ export async function generatePack(input: PackInput): Promise<PackFile[]> {
   return files;
 }
 
-function generateBlogPage(input: PackInput, seedContent: string, seedUrl: string): string {
+function generateBlogPage(input: PackInput, blogContent: string, seedUrl: string): string {
   const { slug, business, offer, keywords } = input;
   const keywordList = keywords.split(',').map(k => k.trim()).filter(Boolean);
   const primaryKeyword = keywordList[0] || 'business growth';
@@ -284,89 +336,16 @@ export default function BlogPost() {
           <p className="text-xl text-gray-600">{metaDescription}</p>
         </header>
 
-        <section className="prose prose-lg max-w-none mb-12">
-          <h2>Why ${primaryKeyword} Matters for ${business.region} Businesses</h2>
-          <p>
-            In today's competitive landscape, ${business.region} businesses need every advantage. 
-            ${primaryKeyword.charAt(0).toUpperCase() + primaryKeyword.slice(1)} isn't just a buzzword—it's a proven strategy 
-            that drives real results for companies just like yours.
+        <section className="prose prose-lg max-w-none mb-12" dangerouslySetInnerHTML={{ __html: \`${blogContent}\` }} />
+        
+        <section className="prose prose-lg max-w-none">
+          <p className="text-center text-lg font-semibold mb-4">
+            Ready to transform your ${business.region} business?
           </p>
-          <p>
-            ${business.valueProp} At ${business.businessName}, we've seen firsthand how the right 
-            approach can transform businesses in ${business.region}.
-          </p>
-
-          <h2>Understanding the Fundamentals</h2>
-          <p>
-            Before diving into implementation, it's crucial to understand what makes ${primaryKeyword} 
-            effective. The key lies in three core principles:
-          </p>
-          <ul>
-            <li><strong>Strategy First:</strong> Start with clear, measurable goals</li>
-            <li><strong>Customer Focus:</strong> Put your ${business.region} audience at the center</li>
-            <li><strong>Continuous Improvement:</strong> Measure, learn, and optimize</li>
-          </ul>
-
-          <h2>Practical Implementation Steps</h2>
-          <h3>Step 1: Assessment</h3>
-          <p>
-            Begin by evaluating your current position. What's working? What isn't? 
-            Understanding your baseline helps you measure progress effectively.
-          </p>
-
-          <h3>Step 2: Planning</h3>
-          <p>
-            Develop a clear roadmap tailored to ${business.region}'s unique market conditions. 
-            Your plan should align with your business goals and customer needs.
-          </p>
-
-          <h3>Step 3: Execution</h3>
-          <p>
-            Implementation is where strategy meets reality. Focus on consistent execution 
-            and be prepared to adapt as you learn what works best for your audience.
-          </p>
-
-          <h2>Common Challenges and Solutions</h2>
-          <p>
-            Many ${business.region} businesses face similar obstacles when implementing ${primaryKeyword}. 
-            Here's how to overcome them:
-          </p>
-          <ul>
-            <li><strong>Resource Constraints:</strong> Start small and scale based on results</li>
-            <li><strong>Measurement Difficulties:</strong> Focus on a few key metrics rather than tracking everything</li>
-            <li><strong>Market Competition:</strong> Differentiate through authenticity and local expertise</li>
-          </ul>
-
-          <h2>Frequently Asked Questions</h2>
-          
-          <h3>What are the key benefits of ${primaryKeyword}?</h3>
-          <p>
-            The primary benefits include improved efficiency, better customer engagement, and measurable ROI 
-            for ${business.region} businesses. When implemented correctly, you'll see results in both 
-            short-term metrics and long-term growth.
-          </p>
-
-          <h3>How can ${business.region} businesses implement ${primaryKeyword}?</h3>
-          <p>
-            Start with a clear strategy, focus on your target audience, and measure results consistently. 
-            ${business.businessName} can help guide you through the process with proven frameworks and 
-            local market expertise.
-          </p>
-
-          <h3>What makes ${business.businessName} different?</h3>
-          <p>
-            ${business.valueProp} We specialize in serving ${business.region} with proven strategies 
-            and deep local expertise. Our approach is tailored to the unique needs of businesses in this market.
-          </p>
-
-          <h2>Taking Action</h2>
-          <p>
-            The best time to start is now. ${primaryKeyword.charAt(0).toUpperCase() + primaryKeyword.slice(1)} 
-            success doesn't happen overnight, but every journey begins with a single step.
-          </p>
-          <p>
-            Ready to transform your ${business.region} business? <a href="${offer.ctaUrl}" className="text-blue-600 hover:underline font-semibold">${offer.ctaText}</a> and 
-            let's create a strategy that works for you.
+          <p className="text-center">
+            <a href="${offer.ctaUrl}" className="text-blue-600 hover:underline font-semibold text-lg">
+              ${offer.ctaText} →
+            </a>
           </p>
         </section>
 
@@ -395,6 +374,28 @@ export default function BlogPost() {
   );
 }
 `;
+}
+
+function generateBlogContentTemplate(input: PackInput, seedContent: string): string {
+  const { business, offer, keywords } = input;
+  const keywordList = keywords.split(',').map(k => k.trim()).filter(Boolean);
+  const primaryKeyword = keywordList[0] || 'business growth';
+
+  return `
+    <h2>Why ${primaryKeyword} Matters for ${business.region} Businesses</h2>
+    <p>In today's competitive landscape, ${business.region} businesses need every advantage. ${business.valueProp}</p>
+    
+    <h2>Key Strategies</h2>
+    <p>Success in ${primaryKeyword} requires a focused approach:</p>
+    <ul>
+      <li><strong>Strategy First:</strong> Start with clear, measurable goals</li>
+      <li><strong>Customer Focus:</strong> Put your ${business.region} audience at the center</li>
+      <li><strong>Continuous Improvement:</strong> Measure, learn, and optimize</li>
+    </ul>
+
+    <h2>Taking Action</h2>
+    <p>Ready to transform your ${business.region} business? At ${business.businessName}, we're here to help.</p>
+  `;
 }
 
 function generateSources(seedUrl: string, input: PackInput): string {
@@ -534,7 +535,14 @@ CONNECT WITH US
 ${hashtags} #LocalBusiness #SmallBusiness #${business.region.replace(/\s+/g, '')}`;
 }
 
-function generateReviewJSON(slug: string, seedUrl: string, input: PackInput, imageAssets: ImageAsset[]): string {
+function generateReviewJSON(
+  slug: string, 
+  seedUrl: string, 
+  input: PackInput, 
+  imageAssets: ImageAsset[], 
+  aiCost: number, 
+  aiTokens: number
+): string {
   const platforms = ['facebook', 'instagram', 'linkedin', 'gbp', 'youtube'];
   const assets: any = { blog: `/app/blog/${slug}/page.tsx`, platforms: {}, images: {} };
   
@@ -576,9 +584,15 @@ function generateReviewJSON(slug: string, seedUrl: string, input: PackInput, ima
     },
     notes: {
       seedUrl: seedUrl || 'No seed URL provided',
-      originality: '≥80% paraphrased; no >75-char verbatim runs',
+      originality: 'AI-generated unique content based on seed material',
+      aiTextGeneration: {
+        tokensUsed: aiTokens,
+        cost: `$${aiCost.toFixed(4)}`,
+        model: 'GPT-4o-mini'
+      },
       imagesGenerated: imageAssets.length,
-      imageGenerationCost: `~$${(imageAssets.length * 0.08).toFixed(2)} (estimated)`
+      imageGenerationCost: `~$${(imageAssets.length * 0.08).toFixed(2)}`,
+      totalEstimatedCost: `$${(aiCost + imageAssets.length * 0.08).toFixed(2)}`
     },
     assets,
     sources: `/content/${slug}/sources.md`
