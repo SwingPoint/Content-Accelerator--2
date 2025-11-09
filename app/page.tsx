@@ -14,40 +14,58 @@ export default function HomePage() {
           </p>
         </div>
 
-        <div className="grid md:grid-cols-2 gap-8 mb-16">
+        <div className="mb-16">
           <Link
-            href="/packs/new"
-            className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition group"
+            href="/packs/new/wizard"
+            className="block bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-2xl shadow-2xl p-12 hover:shadow-3xl transition group mb-8"
           >
-            <div className="text-4xl mb-4">✨</div>
-            <h2 className="text-2xl font-bold mb-3 group-hover:text-blue-600 transition">
-              Create New Pack
-            </h2>
-            <p className="text-gray-600 mb-4">
-              Start with a seed URL or text and generate a complete content package 
-              in minutes. No database, no OAuth, no complexity.
-            </p>
-            <span className="text-blue-600 font-semibold group-hover:underline">
-              Get Started →
-            </span>
+            <div className="text-center">
+              <div className="text-6xl mb-4">✨</div>
+              <h2 className="text-4xl font-bold mb-4">
+                Start Creating Content in 2 Minutes
+              </h2>
+              <p className="text-xl text-blue-100 mb-6 max-w-2xl mx-auto">
+                Answer 10 simple questions and watch AI transform your seed content into 
+                a complete 5-day content pack with blog, social posts, and images.
+              </p>
+              <div className="inline-flex items-center text-xl font-semibold bg-white text-blue-600 px-8 py-4 rounded-lg group-hover:scale-105 transition">
+                Launch Wizard →
+              </div>
+              <div className="mt-6 flex justify-center gap-8 text-sm text-blue-200">
+                <span>✓ 1 Blog Post</span>
+                <span>✓ 25 Social Posts</span>
+                <span>✓ 22 AI Images</span>
+              </div>
+            </div>
           </Link>
 
-          <Link
-            href="/packs"
-            className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition group"
-          >
-            <div className="text-4xl mb-4">📦</div>
-            <h2 className="text-2xl font-bold mb-3 group-hover:text-blue-600 transition">
-              View All Packs
-            </h2>
-            <p className="text-gray-600 mb-4">
-              Browse and manage your existing content packs. Review generated 
-              content, schedules, and assets.
-            </p>
-            <span className="text-blue-600 font-semibold group-hover:underline">
-              Browse Packs →
-            </span>
-          </Link>
+          <div className="grid md:grid-cols-2 gap-6">
+            <Link
+              href="/packs/new"
+              className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition group"
+            >
+              <div className="text-3xl mb-3">⚡</div>
+              <h3 className="text-xl font-bold mb-2 group-hover:text-blue-600 transition">
+                Quick Form Mode
+              </h3>
+              <p className="text-gray-600 text-sm">
+                All-in-one form for power users who want maximum control
+              </p>
+            </Link>
+
+            <Link
+              href="/packs"
+              className="bg-white rounded-xl shadow-lg p-8 hover:shadow-xl transition group"
+            >
+              <div className="text-3xl mb-3">📦</div>
+              <h3 className="text-xl font-bold mb-2 group-hover:text-blue-600 transition">
+                View All Packs
+              </h3>
+              <p className="text-gray-600 text-sm">
+                Browse and manage your existing content packs
+              </p>
+            </Link>
+          </div>
         </div>
 
         <div className="bg-white rounded-xl shadow-lg p-8">
