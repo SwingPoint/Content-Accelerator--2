@@ -65,10 +65,18 @@ export default function WizardPage() {
 
     try {
       const res = await createPack(payload);
-      setResult(res);
-      setStep(11); // Move to results step
+      
+      if (res.success && res.mode === 'bundle') {
+        // Store result and redirect to review page
+        localStorage.setItem('wizardResult', JSON.stringify(res));
+        window.location.href = '/packs/new/wizard/review';
+      } else {
+        setResult(res);
+        setStep(11); // Move to results step for local mode
+      }
     } catch (error) {
       setResult({ success: false, error: String(error) });
+      setStep(11);
     } finally {
       setGenerating(false);
     }
@@ -305,6 +313,38 @@ export default function WizardPage() {
         return null;
     }
   };
+
+  // Generation loading screen
+  if (generating) {
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-blue-50 to-indigo-100 flex items-center justify-center">
+        <div className="text-center max-w-2xl px-6">
+          <div className="mb-8">
+            <div className="inline-block animate-bounce text-8xl mb-4">
+              ✨
+            </div>
+          </div>
+          <h2 className="text-4xl font-bold text-gray-900 mb-4">
+            Creating Your Content Pack
+          </h2>
+          <p className="text-xl text-gray-600 mb-8">
+            AI is generating your blog post, 25 social media posts, and 22 images...
+          </p>
+          <div className="bg-white rounded-lg p-6 shadow-lg">
+            <div className="space-y-4">
+              <ProgressItem icon="📝" label="Writing blog post with GPT-4" />
+              <ProgressItem icon="📱" label="Creating platform-native social posts" />
+              <ProgressItem icon="🎨" label="Generating AI images with Ideogram" />
+              <ProgressItem icon="📅" label="Building Mon-Fri schedule" />
+            </div>
+          </div>
+          <p className="text-sm text-gray-500 mt-6">
+            This usually takes 30-60 seconds...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   // Results view
   if (step === 11) {
@@ -548,6 +588,21 @@ function StepContainer({ title, subtitle, children }: {
         {subtitle && <p className="text-gray-600">{subtitle}</p>}
       </div>
       <div>{children}</div>
+    </div>
+  );
+}
+
+// Loading progress item component
+function ProgressItem({ icon, label }: { icon: string; label: string }) {
+  return (
+    <div className="flex items-center gap-3 text-left">
+      <div className="text-2xl animate-pulse">{icon}</div>
+      <div className="flex-1">
+        <div className="text-sm text-gray-700">{label}</div>
+        <div className="mt-1 h-1 bg-gray-200 rounded-full overflow-hidden">
+          <div className="h-full bg-blue-600 rounded-full animate-pulse" style={{ width: '60%' }} />
+        </div>
+      </div>
     </div>
   );
 }
