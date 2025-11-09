@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { createPack } from '../actions';
 import Link from 'next/link';
 
-type WizardStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10;
+type WizardStep = 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11;
 
 export default function WizardPage() {
   // Progress tracking
@@ -66,7 +66,7 @@ export default function WizardPage() {
     try {
       const res = await createPack(payload);
       setResult(res);
-      setStep(11 as any); // Move to results step
+      setStep(11); // Move to results step
     } catch (error) {
       setResult({ success: false, error: String(error) });
     } finally {
