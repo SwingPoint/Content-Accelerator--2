@@ -210,26 +210,51 @@ function ReviewContent() {
               <div className="bg-blue-100 p-3 rounded-lg">
                 <span className="text-3xl">📝</span>
               </div>
-              <div>
-                <h2 className="text-2xl font-bold text-gray-900">Blog Post</h2>
-                <p className="text-sm text-gray-600">Ready-to-publish article for your website</p>
+              <div className="flex-1">
+                <h2 className="text-2xl font-bold text-gray-900">Blog Post (1000-1200 words)</h2>
+                <p className="text-sm text-gray-600">SEO-optimized article • File: blog-post.txt</p>
+              </div>
+              <div className="text-right">
+                <div className="text-sm font-semibold text-gray-900">{blogFile.content.split(/\s+/).length} words</div>
+                <div className="text-xs text-gray-500">Plain Text Format</div>
               </div>
             </div>
 
-            <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+            <div className="bg-white rounded-xl shadow-sm border-2 border-blue-200 overflow-hidden">
+              <div className="bg-blue-50 px-6 py-3 border-b border-blue-200">
+                <div className="flex items-center justify-between">
+                  <span className="text-sm font-semibold text-blue-900">📄 blog-post.txt</span>
+                  <span className="text-xs text-blue-700">This is your blog content (not JSON!)</span>
+                </div>
+              </div>
               <div className="p-6">
-                <h3 className="font-semibold text-gray-900 mb-3">Blog Introduction</h3>
-                <div className="bg-gray-50 p-4 rounded-lg mb-4">
+                <div className="bg-gray-50 p-4 rounded-lg mb-4 max-h-96 overflow-y-auto">
                   <p className="text-sm text-gray-700 leading-relaxed whitespace-pre-wrap">
-                    {blogFile.content.substring(0, 400)}...
+                    {blogFile.content.substring(0, 1000)}...
                   </p>
                 </div>
                 <div className="flex gap-3">
                   <button
                     onClick={() => handleCopyText(blogFile.content)}
-                    className="flex-1 px-6 py-3 border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
+                    className="flex-1 px-6 py-3 bg-blue-600 text-white rounded-lg font-semibold hover:bg-blue-700 transition"
                   >
-                    📋 Copy Text
+                    📋 Copy Full Blog Post ({blogFile.content.split(/\s+/).length} words)
+                  </button>
+                  <button
+                    onClick={() => {
+                      const blob = new Blob([blogFile.content], { type: 'text/plain' });
+                      const url = URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = 'blog-post.txt';
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      URL.revokeObjectURL(url);
+                    }}
+                    className="px-6 py-3 border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition"
+                  >
+                    ⬇️ Download blog-post.txt
                   </button>
                 </div>
               </div>
