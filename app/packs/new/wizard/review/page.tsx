@@ -3,17 +3,30 @@
 import { useState, useEffect, Suspense } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
+import { exportContentToAirtable, exportContentToGoogleDocs, exportContentToCSV } from './actions';
 
 function ReviewContent() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [result, setResult] = useState<any>(null);
+  const [exporting, setExporting] = useState<'airtable' | 'gdocs' | 'csv' | null>(null);
+  const [businessName, setBusinessName] = useState('Content Pack');
 
   useEffect(() => {
     const storedResult = localStorage.getItem('wizardResult');
     if (storedResult) {
       const parsed = JSON.parse(storedResult);
       setResult(parsed);
+      // Try to extract business name from files
+      const reviewFile = parsed.files?.find((f: any) => f.path.includes('/review/'));
+      if (reviewFile) {
+        try {
+          const reviewData = JSON.parse(reviewFile.content);
+          setBusinessName(reviewData.business?.businessName || 'Content Pack');
+        } catch (e) {
+          // ignore
+        }
+      }
       setLoading(false);
     } else {
       router.push('/packs/new/wizard');
@@ -58,6 +71,71 @@ function ReviewContent() {
         document.body.removeChild(a);
       }, (result.files.length + idx) * 100);
     });
+  };
+
+  const handleExportToAirtable = async () => {
+    setExporting('airtable');
+    const exportData = {
+      businessName,
+      files: result.files || [],
+      images: result.images || []
+    };
+    
+    const response = await exportContentToAirtable(exportData);
+    setExporting(null);
+    
+    if (response.success && response.recordUrl) {
+      alert(`✅ Content exported to Airtable!\n\nView record: ${response.recordUrl}`);
+      window.open(response.recordUrl, '_blank');
+    } else {
+      alert(`❌ Export failed: ${response.error}`);
+    }
+  };
+
+  const handleExportToGoogleDocs = async () => {
+    setExporting('gdocs');
+    const exportData = {
+      businessName,
+      files: result.files || [],
+      images: result.images || []
+    };
+    
+    const response = await exportContentToGoogleDocs(exportData);
+    setExporting(null);
+    
+    if (response.success && response.docUrl) {
+      alert(`✅ Content exported to Google Docs!\n\nView document: ${response.docUrl}`);
+      window.open(response.docUrl, '_blank');
+    } else {
+      alert(`❌ Export failed: ${response.error}`);
+    }
+  };
+
+  const handleExportToCSV = async () => {
+    setExporting('csv');
+    const exportData = {
+      businessName,
+      files: result.files || [],
+      images: result.images || []
+    };
+    
+    const response = await exportContentToCSV(exportData);
+    setExporting(null);
+    
+    if (response.success && response.csv) {
+      const blob = new Blob([response.csv], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${businessName.replace(/\s+/g, '-')}-content-pack.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+      alert('✅ CSV downloaded successfully!');
+    } else {
+      alert(`❌ Export failed: ${response.error}`);
+    }
   };
 
   if (loading) {
@@ -227,19 +305,47 @@ function ReviewContent() {
 
       {/* Bottom Actions */}
       <div className="bg-white border-t fixed bottom-0 left-0 right-0 shadow-lg">
-        <div className="max-w-6xl mx-auto px-6 py-4 flex items-center justify-between">
-          <Link
-            href="/packs/new/wizard"
-            className="text-gray-600 hover:text-gray-900 font-medium"
-          >
-            ← Start Over
-          </Link>
-          <button
-            onClick={handleDownloadAll}
-            className="px-8 py-3 bg-green-600 text-white rounded-lg font-bold text-lg hover:bg-green-700 transition shadow-md"
-          >
-            📥 Download All Content
-          </button>
+        <div className="max-w-6xl mx-auto px-6 py-4">
+          <div className="flex items-center justify-between mb-2">
+            <Link
+              href="/packs/new/wizard"
+              className="text-gray-600 hover:text-gray-900 font-medium"
+            >
+              ← Start Over
+            </Link>
+            <button
+              onClick={handleDownloadAll}
+              className="px-8 py-3 bg-green-600 text-white rounded-lg font-bold text-lg hover:bg-green-700 transition shadow-md"
+            >
+              📥 Download All
+            </button>
+          </div>
+          
+          {/* Export Options */}
+          <div className="flex items-center gap-3 pt-2 border-t">
+            <span className="text-sm text-gray-600 font-medium">Export to:</span>
+            <button
+              onClick={handleExportToAirtable}
+              disabled={exporting === 'airtable'}
+              className="px-4 py-2 text-sm border-2 border-purple-600 text-purple-600 rounded-lg font-semibold hover:bg-purple-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {exporting === 'airtable' ? '⏳ Exporting...' : '📊 Airtable'}
+            </button>
+            <button
+              onClick={handleExportToGoogleDocs}
+              disabled={exporting === 'gdocs'}
+              className="px-4 py-2 text-sm border-2 border-blue-600 text-blue-600 rounded-lg font-semibold hover:bg-blue-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {exporting === 'gdocs' ? '⏳ Exporting...' : '📄 Google Docs'}
+            </button>
+            <button
+              onClick={handleExportToCSV}
+              disabled={exporting === 'csv'}
+              className="px-4 py-2 text-sm border-2 border-gray-600 text-gray-600 rounded-lg font-semibold hover:bg-gray-50 transition disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {exporting === 'csv' ? '⏳ Exporting...' : '📑 CSV'}
+            </button>
+          </div>
         </div>
       </div>
     </div>
