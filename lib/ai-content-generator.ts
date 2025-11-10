@@ -74,45 +74,106 @@ export async function generateBlogPostAI(
   const keywordList = keywords.split(',').map(k => k.trim()).filter(Boolean);
   const primaryKeyword = keywordList[0] || 'business growth';
 
-  const systemPrompt = `You are an expert content writer specializing in SEO-optimized blog posts for local businesses. 
+  const systemPrompt = `You are an expert SEO content writer and local search specialist with 10+ years of experience. 
 Your writing style is ${business.voice}.
-You create engaging, valuable content that ranks well in search engines while providing genuine value to readers.
+You create comprehensive, SEO-optimized blog posts that rank on page 1 of Google for local search queries.
+You understand E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness) principles and semantic SEO.
 Always include proper HTML structure with h2/h3 headings, paragraphs, and lists.`;
 
-  const prompt = `Write a comprehensive blog post (800-1200 words) for ${business.businessName}, a business serving ${business.region}.
+  const prompt = `Write a COMPREHENSIVE, SEO-optimized blog post of EXACTLY 1000-1200 words for ${business.businessName}, a business serving ${business.region}.
+
+**CRITICAL: This blog post MUST be 1000-1200 words minimum. Count as you write.**
 
 **Business Info:**
+- Business Name: ${business.businessName}
 - Value Proposition: ${business.valueProp}
-- Region: ${business.region}
+- Target Region: ${business.region}
 - Brand Voice: ${business.voice}
+- Website: ${business.website}
 
-**Content Requirements:**
-- Primary Topic: ${primaryKeyword}
-- Keywords to naturally incorporate: ${keywordList.join(', ')}
-- Angle: ${angle || 'General industry insights'}
-- Call-to-Action: ${offer.ctaText} (link to ${offer.ctaUrl})
+**Primary SEO Target:**
+- Main Keyword: "${primaryKeyword}" (use 5-7 times naturally)
+- Secondary Keywords: ${keywordList.slice(1, 4).join(', ')} (use 2-3 times each)
+- Long-tail variations: "${primaryKeyword} in ${business.region}", "${primaryKeyword} near me", "best ${primaryKeyword} ${business.region}"
+- Content Angle: ${angle || 'Comprehensive guide with actionable advice'}
+
+**Local SEO (GEO) Requirements:**
+- Mention "${business.region}" 8-12 times naturally throughout
+- Include nearby cities/neighborhoods if relevant
+- Reference local landmarks, events, or context where appropriate
+- Use phrases like "local businesses in ${business.region}", "${business.region} area", "serving ${business.region}"
+- Include "near me" variations naturally
 
 **Source Material:**
-${seedContent ? `Base this content on the following source material (paraphrase heavily, add local context):\n\n${seedContent.substring(0, 3000)}` : 'Create original content based on industry best practices.'}
+${seedContent ? `Base this content on the following source material (paraphrase heavily, add unique insights and local context):\n\n${seedContent.substring(0, 3000)}` : 'Create original, valuable content based on industry best practices and local market insights.'}
 
-**Structure Required:**
-1. Compelling introduction that hooks the reader
-2. 4-6 main sections with h2 headings
-3. Practical, actionable advice specific to ${business.region}
-4. 3-5 FAQ-style questions with answers
-5. Strong conclusion with clear CTA
+**Required Structure (1000-1200 words total):**
 
-**SEO Guidelines:**
-- Write naturally, avoid keyword stuffing
-- Include ${business.region} mentions naturally (not forced)
-- Use semantic keywords and related terms
-- Make it scannable with subheadings and lists
-- Include specific, practical examples
+1. **Introduction (150-200 words)**
+   - Hook with a local statistic or question
+   - Introduce the topic and its relevance to ${business.region}
+   - Include primary keyword in first 100 words
+   - Briefly preview what readers will learn
+
+2. **Main Content Sections (600-800 words across 4-6 sections)**
+   Each section should have:
+   - <h2> heading with keyword variations
+   - 3-5 paragraphs of detailed, actionable content
+   - <h3> subheadings where appropriate
+   - Bullet points or numbered lists for readability
+   - Real examples specific to ${business.region}
+   - Statistics or data points when relevant
+
+3. **FAQ Section (150-200 words)**
+   - 3-5 common questions with <h3> tags
+   - Each answer should be 2-3 sentences
+   - Include long-tail keywords naturally
+   - Questions should be what people actually search for
+
+4. **Conclusion with CTA (100-150 words)**
+   - Summarize key takeaways
+   - Emphasize local benefits
+   - Strong call-to-action: ${offer.ctaText}
+   - Reinforce expertise serving ${business.region}
+
+**Advanced SEO Requirements:**
+✅ Use primary keyword in first paragraph
+✅ Include variations in h2/h3 headings (don't repeat exact phrase)
+✅ Write in active voice, short sentences (15-20 words average)
+✅ Include transition words (However, Therefore, Additionally, etc.)
+✅ Add semantic keywords (related concepts, synonyms)
+✅ Use schema-friendly FAQ format
+✅ Include numbers and data where possible
+✅ Make it scannable: short paragraphs (2-4 sentences), bullet points
+✅ Natural language - conversational yet authoritative
+
+**Local SEO Elements:**
+✅ Geographic keywords in subheadings
+✅ Local statistics or case studies
+✅ Nearby city/neighborhood mentions
+✅ "Near me" optimization phrases
+✅ Service area references
+✅ Community-focused language
+
+**What to AVOID:**
+❌ Keyword stuffing
+❌ Generic advice that could apply anywhere
+❌ Overly promotional language
+❌ Short paragraphs with no substance
+❌ Duplicate content from source material
+❌ Vague claims without specifics
 
 **Output Format:**
-Return ONLY the blog content in clean HTML format. Use semantic HTML tags (h2, h3, p, ul, ol, li, strong).
-Do NOT include <html>, <head>, or <body> tags. Start directly with content.
-Do NOT include a main title (h1) - we'll add that separately.`;
+Return ONLY the blog content in clean, semantic HTML format:
+- Use <h2> for main sections
+- Use <h3> for subsections and FAQs
+- Use <p> for paragraphs
+- Use <ul>/<ol> and <li> for lists
+- Use <strong> for emphasis (sparingly)
+- Do NOT include <html>, <head>, <body>, or <h1> tags
+- Start directly with content
+
+**REMINDER: This MUST be 1000-1200 words. Write substantial, detailed content.**`;
 
   return await generateAIContent(prompt, systemPrompt, 'gpt-4o-mini');
 }
