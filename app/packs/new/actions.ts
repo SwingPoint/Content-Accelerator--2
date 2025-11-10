@@ -53,6 +53,11 @@ export async function createPack(input: PackInput) {
       const textFiles = files.filter(f => f.type !== 'image');
       const imageFiles = files.filter(f => f.type === 'image');
       
+      console.log('[ACTIONS] Total files:', files.length);
+      console.log('[ACTIONS] Text files:', textFiles.length);
+      console.log('[ACTIONS] Image files:', imageFiles.length);
+      console.log('[ACTIONS] Sample image:', imageFiles[0]);
+      
       return {
         success: true,
         mode: 'bundle',
