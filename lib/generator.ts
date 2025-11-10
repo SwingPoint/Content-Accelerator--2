@@ -56,6 +56,35 @@ export async function generatePack(input: PackInput): Promise<PackFile[]> {
     content: generateBlogPage(input, blogContent, seedUrl)
   });
 
+  // 1b. Blog content as downloadable text file (for easy editing)
+  const { business, keywords } = input;
+  const keywordList = keywords.split(',').map(k => k.trim()).filter(Boolean);
+  const primaryKeyword = keywordList[0] || 'business growth';
+  const blogTitle = `${primaryKeyword.charAt(0).toUpperCase() + primaryKeyword.slice(1)}: Complete Guide for ${business.region}`;
+  
+  files.push({
+    path: `content/${slug}/blog-post.txt`,
+    content: `${blogTitle}
+
+${business.valueProp}
+
+===================================
+
+${blogContent.replace(/<[^>]*>/g, '\n').replace(/\n\n+/g, '\n\n').trim()}
+
+===================================
+
+Ready to transform your ${business.region} business?
+${offer.ctaText}: ${offer.ctaUrl}
+
+---
+Source: ${seedUrl || 'Original content'}
+Generated: ${new Date().toLocaleDateString()}
+Business: ${business.businessName}
+Region: ${business.region}
+`
+  });
+
   // 2. Seed file
   files.push({
     path: `content/${slug}/seed.txt`,
@@ -169,7 +198,7 @@ export async function generatePack(input: PackInput): Promise<PackFile[]> {
   
   const ytImage = await generateImage({
     prompt: ytPrompt,
-    aspectRatio: '16:9',
+    aspectRatio: 'ASPECT_16_9',
     styleType: 'DESIGN'
   });
   
@@ -200,7 +229,7 @@ export async function generatePack(input: PackInput): Promise<PackFile[]> {
   
   const blogImage = await generateImage({
     prompt: blogPrompt,
-    aspectRatio: '16:9',
+    aspectRatio: 'ASPECT_16_9',
     styleType: 'GENERAL'
   });
   
