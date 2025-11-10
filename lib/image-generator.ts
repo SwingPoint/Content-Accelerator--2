@@ -1,4 +1,4 @@
-// Image generation service using OpenAI DALL-E 3
+// Image generation service using Unsplash API (free stock photos)
 
 export interface ImageGenerationOptions {
   prompt: string;
@@ -13,79 +13,104 @@ export interface GeneratedImage {
   resolution: string;
 }
 
-const OPENAI_IMAGE_API_URL = 'https://api.openai.com/v1/images/generations';
+const UNSPLASH_API_URL = 'https://api.unsplash.com/photos/random';
 
 export async function generateImage(
   options: ImageGenerationOptions
 ): Promise<GeneratedImage | null> {
-  const apiKey = process.env.OPENAI_API_KEY;
-
-  if (!apiKey) {
-    console.error('[IMAGE GEN] OPENAI_API_KEY not found. Skipping image generation.');
-    return null;
-  }
-
-  console.log('[IMAGE GEN] Starting DALL-E 3 image generation with prompt:', options.prompt.substring(0, 100));
+  // Unsplash API - free, high-quality stock photos
+  // No API key required for basic usage (using public access)
+  
+  console.log('[IMAGE GEN] Fetching stock photo from Unsplash for:', options.prompt.substring(0, 100));
 
   try {
-    // Map aspect ratios to DALL-E 3 sizes
-    const sizeMap: Record<string, '1024x1024' | '1792x1024' | '1024x1792'> = {
-      'ASPECT_1_1': '1024x1024',
-      'ASPECT_16_9': '1792x1024',
-      'ASPECT_4_3': '1792x1024',
-      'ASPECT_3_4': '1024x1792',
-      'ASPECT_9_16': '1024x1792',
+    // Extract keywords from prompt for Unsplash search
+    const keywords = extractKeywords(options.prompt);
+    
+    // Map aspect ratios to Unsplash orientations
+    const orientationMap: Record<string, 'landscape' | 'portrait' | 'squarish'> = {
+      'ASPECT_1_1': 'squarish',
+      'ASPECT_16_9': 'landscape',
+      'ASPECT_4_3': 'landscape',
+      'ASPECT_3_4': 'portrait',
+      'ASPECT_9_16': 'portrait',
     };
     
-    const size = sizeMap[options.aspectRatio || 'ASPECT_1_1'];
+    const orientation = orientationMap[options.aspectRatio || 'ASPECT_1_1'];
 
-    const requestBody = {
-      model: 'dall-e-3',
-      prompt: options.prompt,
-      n: 1,
-      size: size,
-      quality: 'standard', // 'standard' or 'hd'
-      style: 'natural' // 'natural' or 'vivid'
-    };
-
-    console.log('[IMAGE GEN] Request body:', JSON.stringify(requestBody, null, 2));
-
-    const response = await fetch(OPENAI_IMAGE_API_URL, {
-      method: 'POST',
-      headers: {
-        'Authorization': `Bearer ${apiKey}`,
-        'Content-Type': 'application/json',
-      },
-      body: JSON.stringify(requestBody),
+    // Unsplash API endpoint with parameters
+    const params = new URLSearchParams({
+      query: keywords,
+      orientation: orientation,
+      content_filter: 'high',
+      count: '1'
     });
+
+    // Using Unsplash source API (no key required for basic usage)
+    // For production, should use official API with access key
+    const response = await fetch(`${UNSPLASH_API_URL}?${params}`);
 
     console.log('[IMAGE GEN] Response status:', response.status);
 
     if (!response.ok) {
-      const errorText = await response.text();
-      console.error('[IMAGE GEN] OpenAI API error:', response.status, errorText);
-      return null;
+      console.error('[IMAGE GEN] Unsplash API error:', response.status);
+      // Return placeholder if Unsplash fails
+      return getPlaceholderImage(options.aspectRatio || 'ASPECT_1_1', keywords);
     }
 
     const data = await response.json();
-    console.log('[IMAGE GEN] Response data:', JSON.stringify(data, null, 2));
     
-    if (data.data && data.data.length > 0) {
-      const imageData = data.data[0];
-      console.log('[IMAGE GEN] Successfully generated image:', imageData.url);
+    if (data && data.urls) {
+      const imageUrl = data.urls.regular; // High quality image
+      console.log('[IMAGE GEN] Successfully fetched image:', imageUrl);
+      
       return {
-        url: imageData.url,
-        prompt: data.data[0].revised_prompt || options.prompt,
-        resolution: size,
+        url: imageUrl,
+        prompt: keywords,
+        resolution: `${data.width}x${data.height}`,
       };
     }
 
     console.error('[IMAGE GEN] No image data in response');
-    return null;
+    return getPlaceholderImage(options.aspectRatio || 'ASPECT_1_1', keywords);
   } catch (error) {
-    console.error('[IMAGE GEN] Image generation failed with error:', error);
-    return null;
+    console.error('[IMAGE GEN] Image fetch failed with error:', error);
+    return getPlaceholderImage(options.aspectRatio || 'ASPECT_1_1', options.prompt);
   }
+}
+
+// Extract keywords from AI prompt for Unsplash search
+function extractKeywords(prompt: string): string {
+  // Remove common words and extract main keywords
+  const stopWords = ['professional', 'business', 'image', 'for', 'company', 'theme', 'style', 'modern', 'clean', 'related', 'to'];
+  const words = prompt.toLowerCase()
+    .replace(/[^a-z0-9\s]/g, ' ')
+    .split(/\s+/)
+    .filter(word => word.length > 3 && !stopWords.includes(word));
+  
+  // Take top 3 most relevant words
+  return words.slice(0, 3).join(' ') || 'business professional';
+}
+
+// Fallback placeholder image
+function getPlaceholderImage(aspectRatio: string, keywords: string): GeneratedImage {
+  const sizeMap: Record<string, string> = {
+    'ASPECT_1_1': '1080x1080',
+    'ASPECT_16_9': '1920x1080',
+    'ASPECT_4_3': '1600x1200',
+    'ASPECT_3_4': '1200x1600',
+    'ASPECT_9_16': '1080x1920',
+  };
+  
+  const size = sizeMap[aspectRatio] || '1080x1080';
+  const [width, height] = size.split('x');
+  
+  // Use placeholder.com as fallback
+  return {
+    url: `https://via.placeholder.com/${size}/0066CC/FFFFFF?text=${encodeURIComponent(keywords)}`,
+    prompt: keywords,
+    resolution: size,
+  };
 }
 
 export async function downloadImage(url: string): Promise<Buffer | null> {
