@@ -36,7 +36,7 @@ export async function generateAIContent(
           { role: 'user', content: prompt }
         ],
         temperature: 0.7,
-        max_tokens: 2000,
+        max_tokens: 4000, // Increased to allow for 1000-1200 word blogs
       }),
     });
 
@@ -80,9 +80,15 @@ You create comprehensive, SEO-optimized blog posts that rank on page 1 of Google
 You understand E-E-A-T (Experience, Expertise, Authoritativeness, Trustworthiness) principles and semantic SEO.
 Always include proper HTML structure with h2/h3 headings, paragraphs, and lists.`;
 
-  const prompt = `Write a COMPREHENSIVE, SEO-optimized blog post of EXACTLY 1000-1200 words for ${business.businessName}, a business serving ${business.region}.
+  const prompt = `You MUST write a COMPREHENSIVE, SEO-optimized blog post of EXACTLY 1000-1200 words for ${business.businessName}, a business serving ${business.region}.
 
-**CRITICAL: This blog post MUST be 1000-1200 words minimum. Count as you write.**
+**CRITICAL REQUIREMENT - READ CAREFULLY:**
+- MINIMUM 1000 words, MAXIMUM 1200 words
+- This is NOT optional - the article WILL BE REJECTED if under 1000 words
+- Write in FULL detail with substantial, in-depth content
+- Each section needs 3-5 FULL paragraphs (not short ones)
+- DO NOT summarize - expand every point thoroughly
+- Count your words as you write to ensure you hit 1000+ words
 
 **Business Info:**
 - Business Name: ${business.businessName}

@@ -1,4 +1,4 @@
-// Image generation service using Pexels API (free stock photos)
+// Image generation service using Ideogram AI API
 
 export interface ImageGenerationOptions {
   prompt: string;
@@ -13,71 +13,76 @@ export interface GeneratedImage {
   resolution: string;
 }
 
-const PEXELS_API_URL = 'https://api.pexels.com/v1/search';
-const PEXELS_API_KEY = process.env.PEXELS_API_KEY || 'FALLBACK_TO_PLACEHOLDER';
+const IDEOGRAM_API_URL = 'https://api.ideogram.ai/generate';
 
 export async function generateImage(
   options: ImageGenerationOptions
 ): Promise<GeneratedImage | null> {
-  // Pexels API - free, high-quality stock photos
+  const apiKey = process.env.IDEOGRAM_API_KEY;
   
-  console.log('[IMAGE GEN] Fetching stock photo for:', options.prompt.substring(0, 100));
+  console.log('[IMAGE GEN] Generating image with Ideogram AI for:', options.prompt.substring(0, 100));
+
+  if (!apiKey) {
+    console.error('[IMAGE GEN] IDEOGRAM_API_KEY not found. Using fallback.');
+    return getPicsumImage(options.aspectRatio || 'ASPECT_1_1', options.prompt);
+  }
 
   try {
-    // Extract keywords from prompt for search
-    const keywords = extractKeywords(options.prompt);
-    
-    // Map aspect ratios to orientations
-    const orientationMap: Record<string, 'landscape' | 'portrait' | 'square'> = {
-      'ASPECT_1_1': 'square',
-      'ASPECT_16_9': 'landscape',
-      'ASPECT_4_3': 'landscape',
-      'ASPECT_3_4': 'portrait',
-      'ASPECT_9_16': 'portrait',
+    // Map aspect ratios
+    const aspectRatioMap: Record<string, string> = {
+      'ASPECT_1_1': 'ASPECT_1_1',
+      'ASPECT_16_9': 'ASPECT_16_9',
+      'ASPECT_4_3': 'ASPECT_4_3',
+      'ASPECT_3_4': 'ASPECT_3_4',
+      'ASPECT_9_16': 'ASPECT_9_16',
     };
-    
-    const orientation = orientationMap[options.aspectRatio || 'ASPECT_1_1'];
 
-    // Try Pexels API first (if key is available)
-    if (PEXELS_API_KEY && PEXELS_API_KEY !== 'FALLBACK_TO_PLACEHOLDER') {
-      const params = new URLSearchParams({
-        query: keywords,
-        orientation: orientation,
-        per_page: '1',
-        page: '1'
-      });
+    const requestBody = {
+      image_request: {
+        prompt: options.prompt,
+        aspect_ratio: aspectRatioMap[options.aspectRatio || 'ASPECT_1_1'],
+        model: 'V_2_TURBO',
+        magic_prompt_option: 'AUTO',
+      },
+    };
 
-      const response = await fetch(`${PEXELS_API_URL}?${params}`, {
-        headers: {
-          'Authorization': PEXELS_API_KEY
-        }
-      });
+    console.log('[IMAGE GEN] Calling Ideogram API...');
 
-      console.log('[IMAGE GEN] Pexels API response status:', response.status);
+    const response = await fetch(IDEOGRAM_API_URL, {
+      method: 'POST',
+      headers: {
+        'Api-Key': apiKey,
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify(requestBody),
+    });
 
-      if (response.ok) {
-        const data = await response.json();
-        
-        if (data.photos && data.photos.length > 0) {
-          const photo = data.photos[0];
-          const imageUrl = photo.src.large2x || photo.src.large;
-          console.log('[IMAGE GEN] Successfully fetched from Pexels:', imageUrl);
-          
-          return {
-            url: imageUrl,
-            prompt: keywords,
-            resolution: `${photo.width}x${photo.height}`,
-          };
-        }
-      }
+    console.log('[IMAGE GEN] Ideogram API response status:', response.status);
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error('[IMAGE GEN] Ideogram API error:', response.status, errorText);
+      return getPicsumImage(options.aspectRatio || 'ASPECT_1_1', options.prompt);
     }
 
-    // Fallback to Picsum (Lorem Picsum - no API key needed)
-    console.log('[IMAGE GEN] Using Picsum fallback');
-    return getPicsumImage(options.aspectRatio || 'ASPECT_1_1', keywords);
+    const data = await response.json();
+    
+    if (data.data && data.data.length > 0) {
+      const imageData = data.data[0];
+      console.log('[IMAGE GEN] Successfully generated image:', imageData.url);
+      
+      return {
+        url: imageData.url,
+        prompt: imageData.prompt || options.prompt,
+        resolution: imageData.resolution || '1024x1024',
+      };
+    }
+
+    console.error('[IMAGE GEN] No image data in Ideogram response');
+    return getPicsumImage(options.aspectRatio || 'ASPECT_1_1', options.prompt);
     
   } catch (error) {
-    console.error('[IMAGE GEN] Image fetch failed with error:', error);
+    console.error('[IMAGE GEN] Ideogram image generation failed:', error);
     return getPicsumImage(options.aspectRatio || 'ASPECT_1_1', options.prompt);
   }
 }
