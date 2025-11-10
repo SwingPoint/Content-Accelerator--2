@@ -1,4 +1,4 @@
-// Image generation service using Ideogram.ai API
+// Image generation service using OpenAI DALL-E 3
 
 export interface ImageGenerationOptions {
   prompt: string;
@@ -13,37 +13,47 @@ export interface GeneratedImage {
   resolution: string;
 }
 
-const IDEOGRAM_API_URL = 'https://api.ideogram.ai/v1/ideogram-v3/generate';
+const OPENAI_IMAGE_API_URL = 'https://api.openai.com/v1/images/generations';
 
 export async function generateImage(
   options: ImageGenerationOptions
 ): Promise<GeneratedImage | null> {
-  const apiKey = process.env.IDEOGRAM_API_KEY;
+  const apiKey = process.env.OPENAI_API_KEY;
 
   if (!apiKey) {
-    console.error('[IMAGE GEN] IDEOGRAM_API_KEY not found. Skipping image generation.');
+    console.error('[IMAGE GEN] OPENAI_API_KEY not found. Skipping image generation.');
     return null;
   }
 
-  console.log('[IMAGE GEN] Starting image generation with prompt:', options.prompt.substring(0, 100));
+  console.log('[IMAGE GEN] Starting DALL-E 3 image generation with prompt:', options.prompt.substring(0, 100));
 
   try {
+    // Map aspect ratios to DALL-E 3 sizes
+    const sizeMap: Record<string, '1024x1024' | '1792x1024' | '1024x1792'> = {
+      'ASPECT_1_1': '1024x1024',
+      'ASPECT_16_9': '1792x1024',
+      'ASPECT_4_3': '1792x1024',
+      'ASPECT_3_4': '1024x1792',
+      'ASPECT_9_16': '1024x1792',
+    };
+    
+    const size = sizeMap[options.aspectRatio || 'ASPECT_1_1'];
+
     const requestBody = {
-      image_request: {
-        prompt: options.prompt,
-        aspect_ratio: options.aspectRatio || 'ASPECT_1_1',
-        model: 'V_3_TURBO',
-        magic_prompt_option: 'AUTO',
-        style_type: options.styleType || 'AUTO',
-      },
+      model: 'dall-e-3',
+      prompt: options.prompt,
+      n: 1,
+      size: size,
+      quality: 'standard', // 'standard' or 'hd'
+      style: 'natural' // 'natural' or 'vivid'
     };
 
     console.log('[IMAGE GEN] Request body:', JSON.stringify(requestBody, null, 2));
 
-    const response = await fetch(IDEOGRAM_API_URL, {
+    const response = await fetch(OPENAI_IMAGE_API_URL, {
       method: 'POST',
       headers: {
-        'Api-Key': apiKey,
+        'Authorization': `Bearer ${apiKey}`,
         'Content-Type': 'application/json',
       },
       body: JSON.stringify(requestBody),
@@ -53,7 +63,7 @@ export async function generateImage(
 
     if (!response.ok) {
       const errorText = await response.text();
-      console.error('[IMAGE GEN] Ideogram API error:', response.status, errorText);
+      console.error('[IMAGE GEN] OpenAI API error:', response.status, errorText);
       return null;
     }
 
@@ -65,8 +75,8 @@ export async function generateImage(
       console.log('[IMAGE GEN] Successfully generated image:', imageData.url);
       return {
         url: imageData.url,
-        prompt: imageData.prompt || options.prompt,
-        resolution: imageData.resolution || 'unknown',
+        prompt: data.data[0].revised_prompt || options.prompt,
+        resolution: size,
       };
     }
 

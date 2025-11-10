@@ -153,8 +153,8 @@ function ReviewContent() {
     return null;
   }
 
-  // Get blog file
-  const blogFile = result.files?.find((f: any) => f.path.startsWith('app/blog/'));
+  // Get blog file (use the text version, not the TSX file)
+  const blogFile = result.files?.find((f: any) => f.path.includes('blog-post.txt'));
 
   // Get social files organized by platform and day
   const socialPosts = ['facebook', 'instagram', 'linkedin', 'gbp', 'youtube'].flatMap(platform => {
