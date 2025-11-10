@@ -1,4 +1,4 @@
-// Image generation service using Unsplash API (free stock photos)
+// Image generation service using Pexels API (free stock photos)
 
 export interface ImageGenerationOptions {
   prompt: string;
@@ -13,23 +13,23 @@ export interface GeneratedImage {
   resolution: string;
 }
 
-const UNSPLASH_API_URL = 'https://api.unsplash.com/photos/random';
+const PEXELS_API_URL = 'https://api.pexels.com/v1/search';
+const PEXELS_API_KEY = process.env.PEXELS_API_KEY || 'FALLBACK_TO_PLACEHOLDER';
 
 export async function generateImage(
   options: ImageGenerationOptions
 ): Promise<GeneratedImage | null> {
-  // Unsplash API - free, high-quality stock photos
-  // No API key required for basic usage (using public access)
+  // Pexels API - free, high-quality stock photos
   
-  console.log('[IMAGE GEN] Fetching stock photo from Unsplash for:', options.prompt.substring(0, 100));
+  console.log('[IMAGE GEN] Fetching stock photo for:', options.prompt.substring(0, 100));
 
   try {
-    // Extract keywords from prompt for Unsplash search
+    // Extract keywords from prompt for search
     const keywords = extractKeywords(options.prompt);
     
-    // Map aspect ratios to Unsplash orientations
-    const orientationMap: Record<string, 'landscape' | 'portrait' | 'squarish'> = {
-      'ASPECT_1_1': 'squarish',
+    // Map aspect ratios to orientations
+    const orientationMap: Record<string, 'landscape' | 'portrait' | 'square'> = {
+      'ASPECT_1_1': 'square',
       'ASPECT_16_9': 'landscape',
       'ASPECT_4_3': 'landscape',
       'ASPECT_3_4': 'portrait',
@@ -38,44 +38,47 @@ export async function generateImage(
     
     const orientation = orientationMap[options.aspectRatio || 'ASPECT_1_1'];
 
-    // Unsplash API endpoint with parameters
-    const params = new URLSearchParams({
-      query: keywords,
-      orientation: orientation,
-      content_filter: 'high',
-      count: '1'
-    });
+    // Try Pexels API first (if key is available)
+    if (PEXELS_API_KEY && PEXELS_API_KEY !== 'FALLBACK_TO_PLACEHOLDER') {
+      const params = new URLSearchParams({
+        query: keywords,
+        orientation: orientation,
+        per_page: '1',
+        page: '1'
+      });
 
-    // Using Unsplash source API (no key required for basic usage)
-    // For production, should use official API with access key
-    const response = await fetch(`${UNSPLASH_API_URL}?${params}`);
+      const response = await fetch(`${PEXELS_API_URL}?${params}`, {
+        headers: {
+          'Authorization': PEXELS_API_KEY
+        }
+      });
 
-    console.log('[IMAGE GEN] Response status:', response.status);
+      console.log('[IMAGE GEN] Pexels API response status:', response.status);
 
-    if (!response.ok) {
-      console.error('[IMAGE GEN] Unsplash API error:', response.status);
-      // Return placeholder if Unsplash fails
-      return getPlaceholderImage(options.aspectRatio || 'ASPECT_1_1', keywords);
+      if (response.ok) {
+        const data = await response.json();
+        
+        if (data.photos && data.photos.length > 0) {
+          const photo = data.photos[0];
+          const imageUrl = photo.src.large2x || photo.src.large;
+          console.log('[IMAGE GEN] Successfully fetched from Pexels:', imageUrl);
+          
+          return {
+            url: imageUrl,
+            prompt: keywords,
+            resolution: `${photo.width}x${photo.height}`,
+          };
+        }
+      }
     }
 
-    const data = await response.json();
+    // Fallback to Picsum (Lorem Picsum - no API key needed)
+    console.log('[IMAGE GEN] Using Picsum fallback');
+    return getPicsumImage(options.aspectRatio || 'ASPECT_1_1', keywords);
     
-    if (data && data.urls) {
-      const imageUrl = data.urls.regular; // High quality image
-      console.log('[IMAGE GEN] Successfully fetched image:', imageUrl);
-      
-      return {
-        url: imageUrl,
-        prompt: keywords,
-        resolution: `${data.width}x${data.height}`,
-      };
-    }
-
-    console.error('[IMAGE GEN] No image data in response');
-    return getPlaceholderImage(options.aspectRatio || 'ASPECT_1_1', keywords);
   } catch (error) {
     console.error('[IMAGE GEN] Image fetch failed with error:', error);
-    return getPlaceholderImage(options.aspectRatio || 'ASPECT_1_1', options.prompt);
+    return getPicsumImage(options.aspectRatio || 'ASPECT_1_1', options.prompt);
   }
 }
 
@@ -92,24 +95,27 @@ function extractKeywords(prompt: string): string {
   return words.slice(0, 3).join(' ') || 'business professional';
 }
 
-// Fallback placeholder image
-function getPlaceholderImage(aspectRatio: string, keywords: string): GeneratedImage {
-  const sizeMap: Record<string, string> = {
-    'ASPECT_1_1': '1080x1080',
-    'ASPECT_16_9': '1920x1080',
-    'ASPECT_4_3': '1600x1200',
-    'ASPECT_3_4': '1200x1600',
-    'ASPECT_9_16': '1080x1920',
+// Fallback to Lorem Picsum (free, no API key)
+function getPicsumImage(aspectRatio: string, keywords: string): GeneratedImage {
+  const sizeMap: Record<string, { width: number; height: number }> = {
+    'ASPECT_1_1': { width: 1080, height: 1080 },
+    'ASPECT_16_9': { width: 1920, height: 1080 },
+    'ASPECT_4_3': { width: 1600, height: 1200 },
+    'ASPECT_3_4': { width: 1200, height: 1600 },
+    'ASPECT_9_16': { width: 1080, height: 1920 },
   };
   
-  const size = sizeMap[aspectRatio] || '1080x1080';
-  const [width, height] = size.split('x');
+  const size = sizeMap[aspectRatio] || { width: 1080, height: 1080 };
   
-  // Use placeholder.com as fallback
+  // Use Lorem Picsum for random photos (no key required)
+  // Add a seed based on keywords for consistency
+  const seed = keywords.replace(/\s+/g, '-').toLowerCase();
+  const url = `https://picsum.photos/seed/${seed}/${size.width}/${size.height}`;
+  
   return {
-    url: `https://via.placeholder.com/${size}/0066CC/FFFFFF?text=${encodeURIComponent(keywords)}`,
+    url,
     prompt: keywords,
-    resolution: size,
+    resolution: `${size.width}x${size.height}`,
   };
 }
 
