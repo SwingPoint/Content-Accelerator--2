@@ -2,8 +2,8 @@
 
 export interface ImageGenerationOptions {
   prompt: string;
-  aspectRatio?: '1:1' | '16:9' | '4:3' | '3:4' | '9:16';
-  model?: 'V_2' | 'V_2_TURBO';
+  aspectRatio?: 'ASPECT_1_1' | 'ASPECT_16_9' | 'ASPECT_4_3' | 'ASPECT_3_4' | 'ASPECT_9_16';
+  model?: 'V_3' | 'V_3_TURBO';
   styleType?: 'AUTO' | 'GENERAL' | 'REALISTIC' | 'DESIGN' | 'RENDER_3D' | 'ANIME';
 }
 
@@ -13,7 +13,7 @@ export interface GeneratedImage {
   resolution: string;
 }
 
-const IDEOGRAM_API_URL = 'https://api.ideogram.ai/generate';
+const IDEOGRAM_API_URL = 'https://api.ideogram.ai/v1/ideogram-v3/generate';
 
 export async function generateImage(
   options: ImageGenerationOptions
@@ -31,8 +31,8 @@ export async function generateImage(
     const requestBody = {
       image_request: {
         prompt: options.prompt,
-        aspect_ratio: options.aspectRatio || '1:1',
-        model: options.model || 'V_2',
+        aspect_ratio: options.aspectRatio || 'ASPECT_1_1',
+        model: 'V_3_TURBO',
         magic_prompt_option: 'AUTO',
         style_type: options.styleType || 'AUTO',
       },
@@ -121,15 +121,15 @@ export function generateImagePrompt(
 }
 
 // Get platform-specific aspect ratios
-export function getPlatformAspectRatio(platform: string): '1:1' | '16:9' | '4:3' | '3:4' | '9:16' {
-  const ratios: Record<string, '1:1' | '16:9' | '4:3' | '3:4' | '9:16'> = {
-    facebook: '16:9',
-    instagram: '1:1',
-    linkedin: '16:9',
-    gbp: '4:3',
-    youtube: '16:9',
-    blog: '16:9',
+export function getPlatformAspectRatio(platform: string): 'ASPECT_1_1' | 'ASPECT_16_9' | 'ASPECT_4_3' | 'ASPECT_3_4' | 'ASPECT_9_16' {
+  const ratios: Record<string, 'ASPECT_1_1' | 'ASPECT_16_9' | 'ASPECT_4_3' | 'ASPECT_3_4' | 'ASPECT_9_16'> = {
+    facebook: 'ASPECT_16_9',
+    instagram: 'ASPECT_1_1',
+    linkedin: 'ASPECT_16_9',
+    gbp: 'ASPECT_4_3',
+    youtube: 'ASPECT_16_9',
+    blog: 'ASPECT_16_9',
   };
-  return ratios[platform] || '1:1';
+  return ratios[platform] || 'ASPECT_1_1';
 }
 
