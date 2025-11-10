@@ -57,7 +57,6 @@ export async function generatePack(input: PackInput): Promise<PackFile[]> {
   });
 
   // 1b. Blog content as downloadable text file (for easy editing)
-  const { business, keywords } = input;
   const keywordList = keywords.split(',').map(k => k.trim()).filter(Boolean);
   const primaryKeyword = keywordList[0] || 'business growth';
   const blogTitle = `${primaryKeyword.charAt(0).toUpperCase() + primaryKeyword.slice(1)}: Complete Guide for ${business.region}`;
